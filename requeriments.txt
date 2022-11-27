@@ -7,3 +7,6 @@ requests
 html2text
 os
 time
+argparse
+colorama
+signal
