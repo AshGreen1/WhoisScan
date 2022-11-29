@@ -10,13 +10,18 @@ import os
 import time
 import argparse
 import signal
-#import threading
+from multiprocessing.pool import ThreadPool as Pool
 import colorama
 from colorama import Fore, Style
 import pdb
+import ipaddress
+from pythonping import ping
+#import concurrent.futures
 
 cS = Fore.GREEN + "[✓]" + Style.RESET_ALL
 pS = Fore.CYAN + "[*]"  + Style.RESET_ALL
+GS = Fore.GREEN
+GE = Style.RESET_ALL
 
 def def_handler(sig, frame):
     print(Fore.RED,"\nKilling all the processes...\n",Style.RESET_ALL)
@@ -137,113 +142,40 @@ def subdomainScan(domain):
 
 # Check for a IP range
 ## Scan a IP range
-def ipRangeToScan(ip,l):
-    device = []
-    #x = threading.Thread()
-    if l == 1:
-        warning = Fore.YELLOW + "[!] This analysis will take about 5 minutes"
-        print(warning + Style.RESET_ALL,end="\n")
-        print("Checking for devices availables...",end="\n")
-        def n(ip):
-            for i in tqdm(range(0,255)):
-                #print(x,flush=True)
-                command = f"ping -c 1 -w 1 {ip}.{str(i)} | grep 'ttl'"
-                output = commandLine(command)
-                pattern = r'\d+\.\d+\.\d+\.\d+'
-                match = re.findall(pattern,output)
-                if bool(match) != False:
-                    device.append(match[0])
-        #x = threading.Thread(target=n,args=(ip,))
-        #x.start()
-        n(ip)
-    elif l == 2:
-        warning = Fore.YELLOW + "[!] This analysis will take about 18 hours"
-        print(warning, end="\n")
-        print(f'Are you sure about this scan?{Style.RESET_ALL}',end="\n")
-        choose = input("yes/no: ")
-        if choose == "yes":
-            print("Checking for devices availables...",end="\n")
-            def z(ip):
-                for i in range(0,255):
-                    print("Analyzing " + ip + "." + str(i) + ".0")
-                    for x in tqdm(range(0,255)):
-                        scanning = ip + "." + str(i) + "." + str(x)
-                        command = f'ping -c 1 -w 1 {scanning} | grep "ttl"'
-                        output = commandLine(command)
-                        pattern = r'\d+\.\d+\.\d+\.\d+'
-                        match = re.findall(pattern,output)
-                        if bool(match) != False:
-                            device.append(match[0])
-            #x = threading.Thread(target=z,args=(ip,))
-            #x.start()
-            z(ip)
-        else:
-            print(f'{Fore.RED}[!] Scan aborted!{Style.RESET_ALL}', end="\n")
-    return device
 ## Scan the IP looking for a IP range
 def ipScan(ip):
     ipSPrint = Fore.GREEN + ip + Style.RESET_ALL
-    print(f'Analyzing IP {ipSPrint}')
+    print(f'{pS} Analyzing IP {ipSPrint}')
     regex = '| grep "\b[0-9]*. - [0-9]*.*\B[0-9]" '
     regex += '| awk -F ":" "{print $2}" | sed "s/ //g"'
-    print(regex)
     command = f'whois {ip}'
     output = commandLine(command).replace("\n","")
-    pattern_range = r'\d+\.\d+\.\d+\.\d+ - \d+\.\d+\.\d+\.\d+'
+    pattern_range = r'\d+\.\d+\.\d+\.\d+/\d\d'
     output = re.findall(pattern_range, output)
-    ipRange = []
-    for i in range(0,1):
-        pattern = r'\d+\.\d+\.\d+\.\d+'
-        ipRange.append(re.findall(pattern,output[i])[0])
-        ipRange.append(re.findall(pattern,output[i])[1])
-    ipPrint = f'{Fore.GREEN}{ipRange[0]} - {ipRange[1]}{Style.RESET_ALL}'
-    print(cS, "IP range", ipPrint, "found!")
-    howMany = ipRange[0].split(".")
-    howMany2 = ipRange[1].split(".")
-    ipResult = []
-    ipOrigin = []
-    for i in range(0,4):
-        print("valor de i ",i)
-        ipResult.append(int(howMany2[i])-int(howMany[i]))
-        ipOrigin.append(int(howMany[i]))
-        #pdb.set_trace()
-    print(ipResult,ipOrigin)
-    ipGenerated = []
-    n = 0
-    #for x in ipOrigin:
-    pdb.set_trace()
-
-    egIp = f'{ipOrigin[0]}{ipOrigin[1]}{ipOrigin[2]}{ipOrigin[3]}'
-    print(egIp)
-        #if ipResult[n] == 0:
-        #    ipGenerated.append(x)
-        #elif ipResult[n] != 0 and ipResult[n+1] != 0:
-        #    ipGenerated.append(x+1)
-        #elif ipResult[n+1]-ipOrigin[]:
-        #    ipGenerated.append(x+1)
-        #print(ipGenerated,n)
-        #print(ipOrigin)
-            #if n < 3:
-    n += 1
-            #else:
-            #    n = 0
-
-        #print(ipOrigin[n]+ipResult[n])
-        #ipRange = []
-        #for i in range(1,ipResult[n]):
-        #    if (ipOrigin[n]+i+1) == ipResult[n]:
-        #        print(True)
-        #    elif (ipOrigin[n]+i+1) != ipResult[n]:
-        #        print("")
-    #if 255-int(howMany[2]) == 255 and 255-int(howMany[3]) == 255:
-    #    toScan = f'{howMany[0]}.{howMany[1]}'
-    #    long = 2
-    #    rangeIp = ipRangeToScan(toScan,long)
-    #elif 255-int(howMany[2]) != 255 and 255-int(howMany[3]) == 255:
-    #    toScan = f'{howMany[0]}.{howMany[1]}.{howMany[2]}'
-    #    long = 1
-    #    rangeIp = ipRangeToScan(toScan,long)
-    #return rangeIp
+    ipRangeFound = Fore.GREEN + output[0] + Style.RESET_ALL
+    print(f'{cS} The Ip range {ipRangeFound} was found!')
+    #pdb.set_trace()
+    def Ips(ips):
+        active = []
+        for ip in ipaddress.IPv4Network(ips[0]):
+            command = f'ping -c 1 -w 1 {format(ip)} '
+            command += '2>/dev/null 1>/dev/null; echo $?'
+            pingCommand = commandLine(command)
+            #pdb.set_trace()
+            #print(pingCommand)
+            if int(pingCommand.strip()) == 0:
+                print(f'{cS} {GS}{ip}{GE} is Active!')
+                active.append(format(ip))
+            #print("There are",len(active),"active targets",end="\n", flush=True)
+        df_ips = {"Active":active}
+        df = pd.DataFrame.from_dict(df_ips, orient='index')
+        return df.transpose()
+    Ips(output)
+    #pool_size = 5
+    #for _ in range(10):
+    #    Pool.apply_async(Ips, (output,))
+    #Pool.close()
+    #Pool.join()
 
 # Scanning Ports from IP file
 
