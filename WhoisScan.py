@@ -270,6 +270,10 @@ if __name__ == "__main__":
         df = pd.DataFrame({"Subdomains":sub_df})
         df.index += 1
         print(df)
+        if args.csv:
+            export.csv(df)
+        elif args.json:
+            export.json(df)
 
     # IP range scan
     elif args.ip:
@@ -277,7 +281,9 @@ if __name__ == "__main__":
         df_ips_active = pd.DataFrame({"Active":df_ip}).transpose()
         print(df_ips_active)
         if args.csv:
-            export.csv(df_ip)
+            export.csv(df_ips_active)
+        elif args.json:
+            export.json(df_ips_active)
 
     # Basic port scan
     elif args.ports:
@@ -285,5 +291,7 @@ if __name__ == "__main__":
         print(df_port.T.drop_duplicates().T.sort_index(axis=1))
         if args.csv:
             export.csv(df_port)
+        elif args.json:
+            export.json(df_port)
     else:
         print(parser.format_help())
